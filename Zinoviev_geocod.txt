@@ -1,0 +1,53 @@
+import osmnx
+import matplotlib.pyplot as plt
+buildings=osmnx.geometries.geometries_from_point((59.9544428, 30.2133489),{'building':'apartments'},dist=300)
+buildings_store=osmnx.geometries.geometries_from_point((59.9544428, 30.2133489),{'shop':['convenience','supermarket']},dist=300)
+buildings_store=buildings_store.drop(index=[6])
+buildings_cafe=osmnx.geometries.geometries_from_point((59.9544428, 30.2133489),{'amenity':'cafe'},dist=300)
+bakery=osmnx.geometries.geometries_from_point((59.9544428, 30.2133489),{'shop':'bakery'},dist=300)
+import pandas as pd
+bakeries=pd.DataFrame({'name':[bakery.iloc[0]['name'],'Bonape','Хлеб story'],'x':[bakery.iloc[0]['geometry'].x,30.215884,30.212866],'y':[bakery.iloc[0]['geometry'].y,59.953012,59.953718]})
+fig,ax=osmnx.plot.plot_footprints(buildings,show=False,close=False)
+for i in buildings_cafe.geometry:
+ ax.scatter(i.x,i.y,c='blue')
+ ax.text(i.x,i.y,'Nonamecafe',c='white')
+for j in buildings_store.index:
+    ax.scatter(buildings_store.iloc[j]["geometry"].x,buildings_store.iloc[j]["geometry"].y)
+    ax.text(buildings_store.iloc[j]["geometry"].x,buildings_store.iloc[j]["geometry"].y,buildings_store.iloc[j]["name"],c='white')
+for k in bakeries.index:
+    ax.scatter(bakeries.iloc[k]['x'],bakeries.iloc[k]['y'],c='red',s=50)
+    ax.text(bakeries.iloc[k]['x'],bakeries.iloc[k]['y'],bakeries.iloc[k]['name'],c='white')
+    circle_=plt.Circle((bakeries.iloc[k]['x'],bakeries.iloc[k]['y']),0.001,alpha=0.3)
+    ax.add_patch(circle_)
+shop1,shop2,shop3,x_centers,y_centers=[],[],[],[],[]
+for x in buildings.geometry:
+    i,j=x.exterior.xy
+    a,b=sum(i)/len(i),sum(j)/len(j)
+    x_centers.append(a)
+    y_centers.append(b)
+    dist_shop1=osmnx.distance.euclidean_dist_vec(b,a,bakeries.iloc[0]['y'],bakeries.iloc[0]['x'])
+    dist_shop2=osmnx.distance.euclidean_dist_vec(b,a,bakeries.iloc[1]['y'],bakeries.iloc[1]['x'])
+    dist_shop3=osmnx.distance.euclidean_dist_vec(b,a,bakeries.iloc[2]['y'],bakeries.iloc[2]['x'])
+    p_shop1=(1/dist_shop1)/(1/dist_shop1+1/dist_shop2+1/dist_shop3)
+    p_shop2=(1/dist_shop2)/(1/dist_shop1+1/dist_shop2+1/dist_shop3)
+    p_shop3=(1/dist_shop3)/(1/dist_shop1+1/dist_shop2+1/dist_shop3)
+    shop1.append(p_shop1)
+    shop2.append(p_shop2)
+    shop3.append(p_shop3)
+buildings['p_shop1']=shop1
+buildings['p_shop2']=shop2
+buildings['p_shop3']=shop3
+buildings['x_center']=x_centers
+buildings['y_center']=y_centers
+import random
+clients_shop1,clients_shop2,clients_shop3=0,0,0
+for x in buildings.index:
+   a=random.choices(['shop1','shop2','shop3'],weights=[buildings.iloc[x]['p_shop1'],buildings.iloc[x]['p_shop2'],buildings.iloc[x]['p_shop3']],k=70)
+   clients_shop1+=a.count('shop1')
+   clients_shop2+=a.count('shop2')
+   clients_shop3+=a.count('shop3')
+ax.scatter(x=buildings['x_center'],y=buildings['y_center'],s=buildings['p_shop1']*800,c='blue',alpha=0.5,linewidths=3,label="Булочные Вольчекa")
+ax.scatter(x=buildings['x_center'],y=buildings['y_center'],s=buildings['p_shop2']*800,c='m',alpha=0.5,linewidths=3,label="Bonape")
+ax.scatter(x=buildings['x_center'],y=buildings['y_center'],s=buildings['p_shop3']*800,c='gold',alpha=0.5,linewidths=3,label="Хлеб story")
+ax.legend()
+plt.show()
